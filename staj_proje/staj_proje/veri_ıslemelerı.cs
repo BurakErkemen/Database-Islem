@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+using TextBox = System.Windows.Forms.TextBox;
 
 namespace staj_proje
 {
@@ -217,6 +218,33 @@ namespace staj_proje
                         }
                     }
                 }
+                if (dataGridView1.SelectedCells.Count > 0)
+                {
+                    int rowIndex = dataGridView1.SelectedCells[0].RowIndex;
+                    DataGridViewRow selectedRow = dataGridView1.Rows[rowIndex];
+                    int columnIndex = dataGridView1.SelectedCells[0].ColumnIndex;
+
+                    List<string> columnNames = GetColumnNames(selectedTable); // Doğru şekilde çağrı yapılmalı
+
+                    List<TextBox> textBoxes = new List<System.Windows.Forms.TextBox> { 
+                        textBox1, textBox2, textBox3, textBox4, 
+                        textBox5, textBox6, textBox7, textBox8, 
+                    };
+                    // TextBox'lara sütun değerlerini yazdır
+                    for (int i = 0; i < columnNames.Count; i++)
+                    {
+                        textBoxes[i].Text = selectedRow.Cells[columnNames[i]].Value.ToString(); 
+                        /*
+                        textBox2.Text = selectedRow.Cells[columnNames[1]].Value.ToString();
+                        textBox3.Text = selectedRow.Cells[columnNames[2]].Value.ToString();
+                        textBox4.Text = selectedRow.Cells[columnNames[3]].Value.ToString();
+                        textBox5.Text = selectedRow.Cells[columnNames[4]].Value.ToString();
+                        textBox6.Text = selectedRow.Cells[columnNames[5]].Value.ToString();
+                        textBox7.Text = selectedRow.Cells[columnNames[6]].Value.ToString();
+                        textBox8.Text = selectedRow.Cells[columnNames[7]].Value.ToString();
+                        */
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -247,93 +275,76 @@ namespace staj_proje
             }
             return columnNames;
         }
-
         private void button1_Click(object sender, EventArgs e)
         {
-
-            // Boş veya whitespace karakter içermeyen TextBox'ları seçin
-            List<System.Windows.Forms.TextBox> nonEmptyTextBoxes = new List<System.Windows.Forms.TextBox>
-            {
-                textBox1, textBox2, textBox3, textBox4,
-                textBox5, textBox6, textBox7, textBox8
-            };
-            // Sütun adlarını tutacak bir liste oluşturun
-            List<string> columnNames = new List<string>();
-
-            // Label ve TextBox'ları gezin
-
-            for (int i = 0; i < nonEmptyTextBoxes.Count; i++)
-            {
-                System.Windows.Forms.TextBox textBox = nonEmptyTextBoxes[i];
-                Label label = Controls.Find("label" + (i + 1), true).FirstOrDefault() as Label;
-
-                // Eğer TextBox boş değilse, sütun adını alın ve TextBox'taki değeri ekleyin
-
-                if (!string.IsNullOrWhiteSpace(textBox.Text))
-                {
-                    columnNames.Add(label.Text);
-                }
-            }
-
-            // Eğer columnNames boşsa, hiçbir TextBox dolu değildir
-            if (columnNames.Count == 0)
-            {
-                MessageBox.Show("En az bir sütun doldurulmalıdır.", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-
-            // Ekleme işlemini yapmak için gerekli SQL sorgusunu oluşturun    
-            string sql = $"USE {databaseName};INSERT INTO {databaseName}.[dbo].{selectedTable} ({string.Join(",", columnNames)}) VALUES ";
-
-
-            // TextBox'lardaki değerleri SQL sorgusuna ekleyin
-
-            List<string> values = new List<string>();
-
-            foreach (System.Windows.Forms.TextBox textBox in nonEmptyTextBoxes)
-            {
-                if (!string.IsNullOrWhiteSpace(textBox.Text))
-                {
-                    values.Add($"'{textBox.Text}'");
-                }
-            }
-
-            // SQL sorgusunu tamamlayın ve veriyi eklemek için uygun olup olmadığını kontrol edin    
-            if (columnNames.Count != values.Count)
-            {
-                MessageBox.Show("Tüm sütunlar için değer girilmelidir.", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-            // SQL sorgusunu tamamlayın ve veriyi ekleyin
-            sql += "(" + string.Join(", ", values) + ")";
-
-            // SQL sorgusunu veritabanına göndererek veriyi ekleyin
             try
             {
+                List<System.Windows.Forms.TextBox> nonEmptyTextBoxes = new List<System.Windows.Forms.TextBox>
+        {
+            textBox1, textBox2, textBox3, textBox4,
+            textBox5, textBox6, textBox7, textBox8
+        };
+
+                List<string> columnNames = new List<string>();
+
+                for (int i = 0; i < nonEmptyTextBoxes.Count; i++)
+                {
+                    System.Windows.Forms.TextBox textBox = nonEmptyTextBoxes[i];
+                    Label label = Controls.Find("label" + (i + 1), true).FirstOrDefault() as Label;
+
+                    if (!string.IsNullOrWhiteSpace(textBox.Text))
+                    {
+                        columnNames.Add(label.Text);
+                    }
+                }
+
+                if (columnNames.Count == 0)
+                {
+                    MessageBox.Show("En az bir sütun doldurulmalıdır.", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                string sql = $"SET IDENTITY_INSERT {selectedTable} ON;USE {databaseName};INSERT INTO {selectedTable} ({string.Join(", ", columnNames)}) VALUES ";
+
+                List<string> values = new List<string>();
+
+                foreach (System.Windows.Forms.TextBox textBox in nonEmptyTextBoxes)
+                {
+                    if (!string.IsNullOrWhiteSpace(textBox.Text))
+                    {
+                        values.Add($"'{textBox.Text}'");
+                    }
+                }
+
+                if (columnNames.Count != values.Count)
+                {
+                    MessageBox.Show("Tüm sütunlar için değer girilmelidir.", "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                sql += "(" + string.Join(", ", values) + "); SET IDENTITY_INSERT [{selectedTable}] OFF";
+
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
                     using (SqlCommand command = new SqlCommand(sql, connection))
                     {
                         command.ExecuteNonQuery();
-                        textBox1.Clear();
-                        textBox2.Clear();
-                        textBox3.Clear();
-                        textBox4.Clear();
-                        textBox5.Clear();
-                        textBox6.Clear();
-                        textBox7.Clear();
-                        textBox8.Clear();
+                        foreach (System.Windows.Forms.TextBox textBox in nonEmptyTextBoxes)
+                        {
+                            textBox.Clear();
+                        }
                     }
                 }
+
+                GridTablo(databaseName);
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Hata: " + ex.Message, "Hata", MessageBoxButtons.OK);
             }
-            // Veriyi ekledikten sonra DataGridView'yi güncelleyin    
-            GridTablo(databaseName);
         }
+
 
         private void button2_Click(object sender, EventArgs e)
         {
@@ -443,6 +454,5 @@ namespace staj_proje
             textBox7.Clear();
             textBox8.Clear();
         }
-
     }
 }
