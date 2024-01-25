@@ -16,7 +16,7 @@ namespace staj_proje
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new giris_sayfası());
+            Application.Run(new homepage());
         }
     }
 }
